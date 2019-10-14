@@ -1,42 +1,68 @@
-FROM ubuntu
+FROM ubuntu:16.04
 
 LABEL MAINTAINER=ymmtr666@gmail.com
 
-RUN set -x \
-&& apt-get update \
-&& apt-get install -y sudo curl wget ubuntu-desktop \
-&& apt-get install -y build-essential autoconf automake libtool \
-flex bison libboost-all-dev qt-sdk libfontconfig1-dev libaudio-dev libxt-dev \
-libglib2.0-dev libxi-dev libxrender-dev 
+ENV TZ Asia/Tokyo
+ENV DISPLAY docker.for.mac.host.internal:0
+ENV DEBIAN_FRONTEND nointeractive
+ENV DEBCONF_NOWARNINGS yes
+ENV RCSS_CONF_DIR /home/rc/.rcssserver
+ENV LOG_DIR /home/rc/logs
+ENV TEAM_DIR /home/rc/teams
+USER root
 
-WORKDIR /rc
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends tzdata \
+  && rm -rf /var/lib/apt/lists/* \
+  && echo "${TZ}" > /etc/timezone \
+  && rm /etc/localtime \
+  && ln -s /usr/share/zoneinfo/Asia/Tokyo /etc/localtime \
+  && dpkg-reconfigure -f noninteractive tzdata
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates wget git make automake \
+    bison flex libtool libfl-dev libqt4-dev \
+    libboost-all-dev libfontconfig-dev \
+    libaudio-dev libxt-dev libsm-dev libice-dev \
+    libxi-dev libxrender-dev libxext-dev \
+    libx11-dev libglib2.0-dev g++
 
-RUN set -x \
-&& wget https://github.com/rcsoccersim/rcssserver/releases/download/rcssserver-15.5.0/rcssserver-15.5.0.tar.gz \
-&& tar xzvf rcssserver-15.5.0.tar.gz \
-&& cd rssserver-15.5.0 \
-&& ./configure \
-&& make \
-&& make install
+WORKDIR /root
+RUN git clone https://github.com/rcsoccersim/rcssserver.git
+RUN git clone https://github.com/rcsoccersim/rcssmonitor.git
 
-WORKDIR /rc
-RUN set -x \
-&& wget https://github.com/rcsoccersim/rcssmonitor/releases/download/rcssmonitor-15.2.1/rcssmonitor-15.2.1.tar.gz \
-&& tar xzvf rcssmonitor-15.2.1.tar.gz \
-&& cd rcssmonitor-15.2.1 \
-&& ./configure \
-&& make \
-&& make install 
+WORKDIR /root/rcssserver
+RUN autoreconf -i && ./configure && make && make install && ldconfig
 
-WORKDIR /rc
-RUN set -x \
-&& wget https://github.com/rcsoccersim/rcsslogplayer/releases/download/rcsslogplayer-15.2.1/rcsslogplayer-15.2.1.tar.gz \
-&& tar xzvf rcsslogplayer-15.2.1.tar.gz \
-&& cd rcsslogplayer-15.2.1 \
-&& ./configure \
-&& make \
-&& make install
+WORKDIR /root/rcssmonitor
+RUN autoreconf -i && ./configure && make && make install && ldconfig
 
-WORKDIR /workspace
+RUN mkdir -p /root/src
+WORKDIR /root/src
+RUN wget https://osdn.net/dl/rctools/librcsc-4.1.0.tar.gz
+RUN tar zxf librcsc-4.1.0.tar.gz
+WORKDIR /root/src/librcsc-4.1.0
+RUN ./configure && make && make install && ldconfig
+WORKDIR /root/src
+RUN wget https://osdn.net/dl/rctools/agent2d-3.1.1.tar.gz
+RUN tar zxf agent2d-3.1.1.tar.gz
+WORKDIR /root/src/agent2d-3.1.1
+RUN ./configure && make && make install
+WORKDIR /root/src
+RUN wget https://osdn.net/dl/rctools/soccerwindow2-5.1.1.tar.gz
+RUN tar zxf soccerwindow2-5.1.1.tar.gz
+WORKDIR /root/src/soccerwindow2-5.1.1
+RUN ./configure && make && make install
 
-CMD rcsocckersim
+RUN useradd -d /home/rc -m -s /bin/bash rc \
+  && echo "rc:rc" | chpasswd
+USER rc
+RUN mkdir -p $RCSS_CONF_DIR
+
+VOLUME $TEAM_DIR
+VOLUME $LOG_DIR
+
+WORKDIR $TEAM_DIR
+
+ENTRYPOINT ["rcssserver", \
+  "--server::game_log_dir=$LOG_DIR", "--server::text_log_dir=$LOG_DIR"]
