@@ -54,15 +54,15 @@ RUN tar zxf soccerwindow2-5.1.1.tar.gz
 WORKDIR /root/src/soccerwindow2-5.1.1
 RUN ./configure && make && make install
 
+WORKDIR /home
 RUN useradd -d /home/rc -m -s /bin/bash rc \
   && echo "rc:rc" | chpasswd
 USER rc
 RUN mkdir -p $RCSS_CONF_DIR
 
-VOLUME $TEAM_DIR
-VOLUME $LOG_DIR
-
 WORKDIR $TEAM_DIR
 
-ENTRYPOINT ["rcssserver", \
-  "--server::game_log_dir=$LOG_DIR", "--server::text_log_dir=$LOG_DIR"]
+# ENTRYPOINT ["rcssserver", \
+#  "--server::game_log_dir=$LOG_DIR", "--server::text_log_dir=$LOG_DIR"]
+
+CMD ["bash"]
