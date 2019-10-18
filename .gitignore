@@ -3,4 +3,8 @@
 *.DS_Store
 ~*
 
+#
+teams/*
+logs/*
 
+!teams/start_server.sh
