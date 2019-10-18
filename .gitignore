@@ -8,3 +8,4 @@ teams/*
 logs/*
 
 !teams/start_server.sh
+!*/.gitkeep
